@@ -59,6 +59,12 @@ public:
 
     string() = delete;
 
+    constexpr string(const char_type c)
+    {
+        elems[0] = c;
+        elems[1] = '\0';
+    }
+
     constexpr string(const char_type (&s)[N])
     {
         std::copy_n(s, N, elems);
@@ -86,6 +92,15 @@ public:
         std::apply([this](const auto&... s) constexpr {
             copy_from(meta::string(s)...);
         }, input);
+    }
+
+    template<typename OtherString>
+    consteval bool operator==(const OtherString& other) const {
+        if (other.size() != size()) return false;
+        for (size_t i = 0; i < N; i++) {
+            if (elems[i] != other.elems[i]) return false;
+        }
+        return true;
     }
 
     constexpr auto operator + (const auto& rhs) const

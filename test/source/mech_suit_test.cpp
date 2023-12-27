@@ -5,24 +5,32 @@
 using namespace mech_suit;
 TEST_CASE("Can parse a path with placeholders", "[library]")
 {
-    route<"/path/:int">([](const http_request&, http_response&, int) {
+    get<"/path/:int(name)">([](const auto& request, http_response&, const int&) {
+            static_assert(std::is_same_v<int, decltype(request.params.template get<"name">())>, "Oops");
     });
 
-    route<"/path/:int/:long">([](const http_request&, http_response&, int, long) {
+    get<"/path/:int(int_name)/:long(long_name)">([](const auto& request, http_response&, const int&, const long&) {
+            static_assert(std::is_same_v<int, decltype(request.params.template get<"int_name">())>, "Oops");
+            static_assert(std::is_same_v<long, decltype(request.params.template get<"long_name">())>, "Oops");
     });
 
-    route<"/path/:int/lol/:float/:long">([](const http_request&, http_response&, int, float, long) {
+    get<"/path/:int(int_name)/lol/:float(float_name)/:long(long_name)">([](const auto& request, http_response&, const int&, const float&, const long&) {
+            static_assert(std::is_same_v<int, decltype(request.params.template get<"int_name">())>, "Oops");
+            static_assert(std::is_same_v<float, decltype(request.params.template get<"float_name">())>, "Oops");
+            static_assert(std::is_same_v<long, decltype(request.params.template get<"long_name">())>, "Oops");
     });
 
-    route<"/:int">([](const http_request&, http_response&, int) {
+    get<"/:string(some_string)">([](const auto& request, http_response&, const std::string_view&) {
+            static_assert(std::is_same_v<std::string_view, decltype(request.params.template get<"some_string">())>, "Oops");
     });
 
-    route<"/:string">([](const http_request&, http_response&, const std::string_view&) {
-    });
-
-    /* route<"/:nope">([](const http_request&, http_response&) { */
+    /* get<"/:nope">([](const http_request&, http_response&) { */
     /* }); */
 
-    route<"/">([](const http_request&, http_response&) {
+    /* get<"/:int">([](const auto&, http_response&) { */
+    /* }); */
+
+    get<"/">([](const auto& request, http_response&) {
+            (void)request;
     });
 }
