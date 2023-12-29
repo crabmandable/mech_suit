@@ -3,25 +3,19 @@
 #include <catch2/catch_test_macros.hpp>
 
 using namespace mech_suit;
+
 TEST_CASE("Can parse a path with placeholders", "[library]")
 {
-    get<"/path/:int(name)">([](const auto& request, http_response&, const int&) {
-            static_assert(std::is_same_v<int, decltype(request.params.template get<"name">())>, "Oops");
+    get<"/path/:int(name)">([](const http_request&, http_response&, const int&) {
     });
 
-    get<"/path/:int(int_name)/:long(long_name)">([](const auto& request, http_response&, const int&, const long&) {
-            static_assert(std::is_same_v<int, decltype(request.params.template get<"int_name">())>, "Oops");
-            static_assert(std::is_same_v<long, decltype(request.params.template get<"long_name">())>, "Oops");
+    get<"/path/:int(int_name)/:long(long_name)">([](const http_request& , http_response&, const int&, const long&) {
     });
 
-    get<"/path/:int(int_name)/lol/:float(float_name)/:long(long_name)">([](const auto& request, http_response&, const int&, const float&, const long&) {
-            static_assert(std::is_same_v<int, decltype(request.params.template get<"int_name">())>, "Oops");
-            static_assert(std::is_same_v<float, decltype(request.params.template get<"float_name">())>, "Oops");
-            static_assert(std::is_same_v<long, decltype(request.params.template get<"long_name">())>, "Oops");
+    get<"/path/:int(int_name)/lol/:float(float_name)/:long(long_name)">([](const http_request&, http_response&, const int&, const float&, const long&) {
     });
 
-    get<"/:string(some_string)">([](const auto& request, http_response&, const std::string_view&) {
-            static_assert(std::is_same_v<std::string_view, decltype(request.params.template get<"some_string">())>, "Oops");
+    get<"/:string(some_string)">([](const http_request&, http_response&, const std::string_view&) {
     });
 
     /* get<"/:nope">([](const http_request&, http_response&) { */
@@ -30,7 +24,19 @@ TEST_CASE("Can parse a path with placeholders", "[library]")
     /* get<"/:int">([](const auto&, http_response&) { */
     /* }); */
 
-    get<"/">([](const auto& request, http_response&) {
-            (void)request;
+    get<"/">([](const http_request&, http_response&) {
+    });
+}
+
+struct Foo {
+    int a;
+    std::string s;
+};
+TEST_CASE("Can define a body struct", "[library]")
+{
+    post<"/", body_json<Foo>>([](const http_request&, http_response&, const Foo&) {
+    });
+
+    post<"/users/:long(id)", body_json<Foo>>([](const http_request&, http_response&, long, const Foo&) {
     });
 }
