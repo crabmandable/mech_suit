@@ -4,18 +4,20 @@
 
 using namespace mech_suit;
 
+application app;
+
 TEST_CASE("Can parse a path with placeholders", "[library]")
 {
-    get<"/path/:int(name)">([](const http_request&, http_response&, const int&) {
+    app.get<"/path/:int(name)">([](const http_request&, http_response&, const int&) {
     });
 
-    get<"/path/:int(int_name)/:long(long_name)">([](const http_request& , http_response&, const int&, const long&) {
+    app.get<"/path/:int(int_name)/:long(long_name)">([](const http_request& , http_response&, const int&, const long&) {
     });
 
-    get<"/path/:int(int_name)/lol/:float(float_name)/:long(long_name)">([](const http_request&, http_response&, const int&, const float&, const long&) {
+    app.get<"/path/:int(int_name)/lol/:float(float_name)/:long(long_name)">([](const http_request&, http_response&, const int&, const float&, const long&) {
     });
 
-    get<"/:string(some_string)">([](const http_request&, http_response&, const std::string_view&) {
+    app.get<"/:string(some_string)">([](const http_request&, http_response&, const std::string_view&) {
     });
 
     /* get<"/:nope">([](const http_request&, http_response&) { */
@@ -24,7 +26,7 @@ TEST_CASE("Can parse a path with placeholders", "[library]")
     /* get<"/:int">([](const auto&, http_response&) { */
     /* }); */
 
-    get<"/">([](const http_request&, http_response&) {
+    app.get<"/">([](const http_request&, http_response&) {
     });
 }
 
@@ -34,9 +36,9 @@ struct Foo {
 };
 TEST_CASE("Can define a body struct", "[library]")
 {
-    post<"/", body_json<Foo>>([](const http_request&, http_response&, const Foo&) {
+    app.post<"/", body_json<Foo>>([](const http_request&, http_response&, const Foo&) {
     });
 
-    post<"/users/:long(id)", body_json<Foo>>([](const http_request&, http_response&, long, const Foo&) {
+    app.post<"/users/:long(id)", body_json<Foo>>([](const http_request&, http_response&, long, const Foo&) {
     });
 }

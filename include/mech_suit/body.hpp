@@ -1,7 +1,8 @@
+#pragma once
+
 #include <utility>
 
 namespace mech_suit {
-#pragma once
     template <typename T>
     struct body_json : std::type_identity<T> {};
 

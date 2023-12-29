@@ -1,11 +1,43 @@
 #pragma once
 #include <utility>
-#include <stddef.h>
+#include <cstddef>
 #include <array>
 
 #include "mech_suit/meta_string.hpp"
 
 namespace mech_suit {
+    template <typename... Ts>
+    class http_params {
+    private:
+        template <typename... Us>
+        struct actual_params {
+            using type = std::tuple<typename Us::type...>;
+        };
+
+        actual_params<Ts...>::type m_params;
+
+        template<size_t idx, meta::string ParamName, typename... Us>
+        struct find_index_by_name {
+            constexpr static ssize_t value = -1;
+        };
+
+        template<size_t idx, meta::string ParamName, typename Head, typename... Tail>
+        struct find_index_by_name<idx, ParamName, Head, Tail...> : std::conditional_t<
+                Head::name == ParamName,
+                std::integral_constant<size_t, idx>,
+                find_index_by_name<idx + 1, ParamName, Tail...>
+            >
+        { };
+
+    public:
+        template<meta::string ParamName>
+        auto get() const {
+            static constexpr ssize_t idx = find_index_by_name<0, ParamName, Ts...>::value;
+            static_assert(idx >= 0, "Parameter does not exist");
+            return std::get<static_cast<size_t>(idx)>(m_params);
+        }
+    };
+
     namespace detail {
 
         template<typename T, meta::string Name>
