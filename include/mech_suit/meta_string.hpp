@@ -95,7 +95,7 @@ public:
     }
 
     template<typename OtherString>
-    consteval bool operator==(const OtherString& other) const {
+    consteval auto operator==(const OtherString& other) const -> bool {
         if (other.size() != size()) return false;
         for (size_t i = 0; i < N; i++) {
             if (elems[i] != other.elems[i]) return false;
@@ -108,22 +108,22 @@ public:
         return meta::string(*this, meta::string(rhs));
     }
 
-    static constexpr size_type size_static() noexcept
+    static constexpr auto size_static() noexcept -> size_type
     { return N; }
 
-    constexpr size_type size() const noexcept
+    constexpr auto size() const noexcept -> size_type
     { return N; }
 
-    constexpr bool empty() const noexcept
+    constexpr auto empty() const noexcept -> bool
     { return N == 1; }
 
-    constexpr const char_type* data() const noexcept
+    constexpr auto data() const noexcept -> const char_type*
     { return elems; }
 
-    constexpr operator const char_type* () const noexcept
+    constexpr explicit operator const char_type* () const noexcept
     { return elems; }
 
-    constexpr operator std::string_view () const
+    constexpr explicit operator std::string_view () const
     { return std::string_view{ elems, N }; }
 
     constexpr const char_type& at(size_type pos) const

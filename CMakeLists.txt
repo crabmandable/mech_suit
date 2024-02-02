@@ -31,6 +31,10 @@ target_include_directories(
 
 target_compile_features(mech_suit_mech_suit INTERFACE cxx_std_20)
 
+# ---- Dependencies ----
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
+
 find_package(glaze REQUIRED)
 target_link_libraries(mech_suit_mech_suit INTERFACE glaze::glaze)
 

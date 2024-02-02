@@ -6,6 +6,10 @@
     {
       "name": "glaze",
       "version>=": "1.9.6"
+    },
+    {
+        "name": "boost-beast",
+        "version>=": "1.83.0"
     }
   ],
   "features": {
