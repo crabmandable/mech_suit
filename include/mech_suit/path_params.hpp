@@ -217,9 +217,9 @@ class http_params_impl<std::tuple<Ts...>>
     template<size_t... Is>
     auto parse(std::index_sequence<Is...> /*unused*/, size_t param_index, std::string_view path_part) const -> variant_t
     {
-        return (
-            ...,
-            (param_index == Is ? (parse_from_str<typename param_type_by_index<Is>::type>(path_part)) : std::nullopt));
+        return (...,
+                (param_index == Is ? variant_t {parse_from_str<typename param_type_at_index<Is>::type>(path_part)}
+                                   : variant_t {std::nullopt}));
     }
 
     // Convert string_view to type T
@@ -230,7 +230,7 @@ class http_params_impl<std::tuple<Ts...>>
         {
             return str;
         }
-        else if (std::is_same_v<bool, T>)
+        else if constexpr (std::is_same_v<bool, T>)
         {
             return str == "1" || str == "yes" || str == "true";
         }
@@ -245,14 +245,18 @@ class http_params_impl<std::tuple<Ts...>>
   public:
     using tuple_t = std::tuple<Ts...>;
 
-    std::vector<std::variant<typename Ts::type...>> params {};
+    std::vector<variant_t> params {};
 
     static constexpr std::array<size_t, sizeof...(Ts)> part_numbers {Ts::part_n...};
     static constexpr size_t size = std::tuple_size_v<tuple_t>;
 
     template<size_t Idx>
-    struct param_type_by_index
-        : std::type_identity<std::remove_cvref_t<decltype(std::get<static_cast<size_t>(Idx)>(std::declval<tuple_t>()))>>
+    struct param_at_index : std::type_identity<std::remove_cvref_t<decltype(std::get<Idx>(std::declval<tuple_t>()))>>
+    {
+    };
+
+    template<size_t Idx>
+    struct param_type_at_index : std::type_identity<typename param_at_index<Idx>::type::type>
     {
     };
 
@@ -265,13 +269,20 @@ class http_params_impl<std::tuple<Ts...>>
         requires(index_of_first<(Idx == Ts::part_n)...>::value >= 0)
     struct param_at_path_idx<Idx>
         : std::type_identity<
-              typename param_type_by_index<static_cast<size_t>(index_of_first<(Idx == Ts::part_n)...>::value)>::type>
+              typename param_at_index<static_cast<size_t>(index_of_first<(Idx == Ts::part_n)...>::value)>::type>
     {
     };
 
     template<size_t Idx>
     using param_at_path_idx_t = typename param_at_path_idx<Idx>::type;
 
+    template<typename T = void>
+    explicit http_params_impl(std::string_view /*unused*/)
+    {
+    }
+
+    template<typename T = void>
+        requires(sizeof...(Ts) > 0)
     explicit http_params_impl(std::string_view path)
     {
         if (path.size() <= 1)

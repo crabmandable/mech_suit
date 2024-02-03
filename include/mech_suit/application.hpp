@@ -17,9 +17,8 @@ namespace mech_suit
 
 class application
 {
-public:
-private:
-
+  public:
+  private:
     std::unordered_map<std::string_view, std::unique_ptr<detail::base_route>> m_routes;
     std::vector<std::unique_ptr<detail::base_route>> m_dynamic_routes;
 
@@ -29,13 +28,16 @@ private:
     template<meta::string Path, http_method Method, typename Body = no_body_t>
     void add_route(detail::callback_type_t<Path, Method, Body> callback)
     {
-        if constexpr (0 == std::tuple_size<detail::params_tuple_t<Path>>())
+        using route_t = detail::route<Path, Method, Body>;
+        auto route = std::make_unique<route_t>(callback);
+
+        if constexpr (route_t::route_is_explicit)
         {
-            m_routes.emplace(Path, std::make_unique<detail::route<Path, Method, Body>>(callback));
+            m_routes.emplace(Path, std::move(route));
         }
         else
         {
-            m_dynamic_routes.emplace_back(std::make_unique<detail::route<Path, Method, Body>>(callback));
+            m_dynamic_routes.emplace_back(std::move(route));
         }
     }
 
@@ -58,25 +60,15 @@ private:
 
         if (m_routes.contains(path))
         {
-            auto resp = co_await m_routes[path]->process(std::move(session));
-            if (not resp) [[unlikely]]
-            {
-                // route not handled
-                // this should ONLY happen due to programming error, since the
-                // path is not dynamic
-                throw std::runtime_error("Explicit route refused to handle a request");
-            }
-
-            co_return *resp;
+            co_return co_await m_routes[path]->handle_request(std::move(session));
         }
         else
         {
             for (const auto& route : m_dynamic_routes)
             {
-                auto resp = co_await route->process(std::move(session));
-                if (resp)
+                if (route->test_match(session.request.target()))
                 {
-                    co_return *resp;
+                    co_return co_await route->handle_request(std::move(session));
                 }
             }
         }
@@ -182,7 +174,6 @@ private:
     unsigned short m_port = 80;
 
   public:
-
     template<meta::string Path>
     void get(detail::callback_type_t<Path, GET> callback)
     {
