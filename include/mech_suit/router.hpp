@@ -6,7 +6,7 @@ namespace mech_suit::detail
 {
 class router
 {
-    std::map<std::string_view, std::unique_ptr<detail::base_route>> m_routes;
+    std::map<std::string, std::unique_ptr<detail::base_route>> m_routes;
     std::vector<std::unique_ptr<detail::base_route>> m_dynamic_routes;
 
     static auto not_found(const http_request& request) -> http::message_generator
@@ -30,7 +30,7 @@ class router
 
         if constexpr (route_t::route_is_explicit)
         {
-            m_routes.emplace(Path, std::move(route));
+            m_routes.emplace(static_cast<const char*>(Path), std::move(route));
         }
         else
         {
@@ -40,7 +40,7 @@ class router
 
     auto handle_request(const http_request& request) const -> http::message_generator
     {
-        const std::string_view& path = request.target();
+        const std::string& path = request.target();
 
         if (m_routes.contains(path))
         {

@@ -86,6 +86,7 @@ class application
     template<typename... Arg>
     void stop_on_signals(Arg&&... arg)
     {
+        //TODO: fix this, its copy pasta that doesn't work
         net::signal_set signals(m_ioc, std::forward<Arg>(arg)...);
         signals.async_wait(
             [&](beast::error_code const&, int)

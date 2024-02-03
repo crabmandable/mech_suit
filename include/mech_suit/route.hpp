@@ -78,6 +78,8 @@ class route : public base_route
             return std::string_view{Path} == path;
         }
 
+        // skip the leading slash
+        path = path.substr(1);
         size_t i = 0;
         do
         {
