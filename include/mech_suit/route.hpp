@@ -5,16 +5,12 @@
 #include <type_traits>
 #include <utility>
 
-#include <boost/beast/http/message.hpp>
-#include <boost/beast/http/message_generator.hpp>
-#include <boost/beast/http/string_body.hpp>
 #include <glaze/glaze.hpp>
 
 #include "mech_suit/body.hpp"
 #include "mech_suit/boost.hpp"
 #include "mech_suit/common.hpp"
 #include "mech_suit/http_method.hpp"
-#include "mech_suit/http_session.hpp"
 #include "mech_suit/path_params.hpp"
 #include "path_params.hpp"
 
@@ -48,9 +44,6 @@ using callback_type_t = callback_type<Path, Method, Body>::type;
 class base_route
 {
 
-  protected:
-    using awaitable_response = net::awaitable<http::message_generator>;
-
   public:
     base_route() = default;
     base_route(const base_route&) = default;
@@ -61,7 +54,7 @@ class base_route
     virtual ~base_route() = default;
 
     virtual auto test_match(std::string_view path) const -> bool = 0;
-    virtual auto handle_request(http_session session) const -> awaitable_response = 0;
+    virtual auto handle_request(const http_request& request) const -> http::message_generator = 0;
 };
 
 template<meta::string Path, http_method Method, typename Body>
@@ -215,7 +208,7 @@ class route : public base_route
                           std::get<typename params_t::template param_type_at_index<Is>::type>(params.params[Is])...);
     }
 
-    auto handle_request(http_session session) const -> awaitable_response final
+    auto handle_request(const http_request& request) const -> http::message_generator final
     {
         using iseq_t = decltype(std::make_index_sequence<params_t::size>());
 
@@ -223,11 +216,11 @@ class route : public base_route
         {
             if constexpr (params_t::size)
             {
-                co_return call_callback(iseq_t(), session.request);
+                return call_callback(iseq_t(), request);
             }
             else
             {
-                co_return call_callback(session.request);
+                return call_callback(request);
             }
         }
         else
@@ -238,26 +231,26 @@ class route : public base_route
             body_t body;
             if constexpr (body_is_json_v<Body>)
             {
-                auto err = glz::read_json<body_t>(body, session.request.body());
+                auto err = glz::read_json<body_t>(body, request.body());
                 if (err)
                 {
-                    std::string descriptive_error = glz::format_error(err, session.request.body());
+                    std::string descriptive_error = glz::format_error(err, request.body());
                     // TODO: do something with error
                     throw std::runtime_error(descriptive_error);
                 }
             }
             else if constexpr (std::is_same_v<body_string, Body>)
             {
-                body = std::move(session.request.body());
+                body = request.body();
             }
 
             if constexpr (params_t::size)
             {
-                co_return call_callback(iseq_t(), session.request, body);
+                return call_callback(iseq_t(), request, body);
             }
             else
             {
-                co_return call_callback(session.request, body);
+                return call_callback(request, body);
             }
         }
     }
