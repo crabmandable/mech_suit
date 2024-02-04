@@ -11,25 +11,49 @@ auto main() -> int
 
     ms::application app(conf);
 
-    app.get<"/">([](const ms::http_request& request) {
+    app.get<"/">(
+        [](const ms::http_request& request)
+        {
+            ms::http::response<ms::http::string_body> response {ms::http::status::ok, request.beast_request.version()};
+            response.set(ms::http::field::content_type, "text/html");
+            response.keep_alive(request.beast_request.keep_alive());
+            response.body() = "Hello world!\n";
+            response.prepare_payload();
+            return response;
+        });
 
-        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.beast_request.version()};
-        response.set(ms::http::field::content_type, "text/html");
-        response.keep_alive(request.beast_request.keep_alive());
-        response.body() = "Hello world!\n";
-        response.prepare_payload();
-        return response;
-    });
+    app.get<"/:string(name)">(
+        [](const ms::http_request& request, std::string_view name)
+        {
+            ms::http::response<ms::http::string_body> response {ms::http::status::ok, request.beast_request.version()};
+            response.set(ms::http::field::content_type, "text/html");
+            response.keep_alive(request.beast_request.keep_alive());
+            response.body() = std::format("Hello {}!\n", name);
+            response.prepare_payload();
+            return response;
+        });
 
-    app.get<"/:string(name)">([](const ms::http_request& request, std::string_view name) {
+    app.get<"/number/:int(n)/good">(
+        [](const ms::http_request& request, int n)
+        {
+            ms::http::response<ms::http::string_body> response {ms::http::status::ok, request.beast_request.version()};
+            response.set(ms::http::field::content_type, "text/html");
+            response.keep_alive(request.beast_request.keep_alive());
+            response.body() = std::format("{} is a pretty good number!\n", n);
+            response.prepare_payload();
+            return response;
+        });
 
-        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.beast_request.version()};
-        response.set(ms::http::field::content_type, "text/html");
-        response.keep_alive(request.beast_request.keep_alive());
-        response.body() = std::format("Hello {}!\n", name);
-        response.prepare_payload();
-        return response;
-    });
+    app.get<"/number/:int(n)/bad">(
+        [](const ms::http_request& request, int n)
+        {
+            ms::http::response<ms::http::string_body> response {ms::http::status::ok, request.beast_request.version()};
+            response.set(ms::http::field::content_type, "text/html");
+            response.keep_alive(request.beast_request.keep_alive());
+            response.body() = std::format("{} is a bad number!\n", n);
+            response.prepare_payload();
+            return response;
+        });
 
     app.run();
 

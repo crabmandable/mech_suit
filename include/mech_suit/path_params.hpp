@@ -33,10 +33,11 @@ struct literal_path_part : public base_path_part
     literal_path_part() = default;
     static constexpr size_t pos = Pos;
     static constexpr size_t part_n = PartN;
+    static constexpr std::string_view part = static_cast<std::string_view>(Part);
 
-    auto test_path_part(std::string_view part) const -> bool final
+    auto test_path_part(std::string_view p) const -> bool final
     {
-        return part == static_cast<std::string_view>(Part);
+        return p == part;
     }
 };
 

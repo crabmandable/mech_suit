@@ -6,6 +6,12 @@ struct http_request
 {
     using beast_request_t = http::request<http::string_body>;
 
+    http_request(const http_request&) = delete;
+    auto operator=(const http_request&) -> http_request& = delete;
+    http_request(http_request&&) = default;
+    auto operator=(http_request&&) -> http_request& = default;
+    ~http_request() = default;
+
     explicit http_request(beast_request_t&& req)
         : beast_request(std::move(req))
     {

@@ -23,8 +23,8 @@ struct route_callback;
 template<http_method Method, typename... Ts, typename Body>
 struct route_callback<Method, std::tuple<Ts...>, Body>
 {
-    using type = std::function<http::message_generator(
-        const http_request&, typename Ts::type..., const typename Body::type&)>;
+    using type =
+        std::function<http::message_generator(const http_request&, typename Ts::type..., const typename Body::type&)>;
 };
 
 template<http_method Method, typename... Ts>
@@ -44,7 +44,6 @@ using callback_type_t = callback_type<Path, Method, Body>::type;
 
 class base_route
 {
-
   public:
     base_route() = default;
     base_route(const base_route&) = default;
@@ -54,7 +53,7 @@ class base_route
 
     virtual ~base_route() = default;
 
-    virtual auto test_match(std::string_view path) const -> bool = 0;
+    virtual auto test_match(const std::vector<std::string_view>& path) const -> bool = 0;
     virtual auto handle_request(const http_request& request) const -> http::message_generator = 0;
 };
 
@@ -72,26 +71,28 @@ class route : public base_route
     {
     }
 
-    auto test_match(std::string_view path) const -> bool final
+    auto test_match(const std::vector<std::string_view>& parts) const -> bool final
     {
+        // This should not be called for explicit routes,
+        // since we can do a simple string comparison
         if constexpr (route_is_explicit)
         {
-            return std::string_view{Path} == path;
+            assert(not route_is_explicit);
+            return false;
         }
 
-        // skip the leading slash
-        path = path.substr(1);
-        size_t i = 0;
-        do
+        if (parts.size() != std::tuple_size_v<param_parts_tuple_t>)
         {
-            auto part = path.substr(0, path.find('/'));
+            return false;
+        }
 
-            if (not test_part_match(i++, part))
+        for (size_t i = 0; i < parts.size(); i++)
+        {
+            if (not test_part_match(i, parts[i]))
             {
                 return false;
             }
-            path = path.substr(part.size());
-        } while (!path.empty());
+        }
 
         return true;
     }
@@ -116,38 +117,29 @@ class route : public base_route
     template<size_t Idx>
     struct part_at
     {
-        static constexpr auto impl()
+        static constexpr auto impl() -> std::pair<size_t, size_t>
         {
+            if (Path.size() < 2)
+            {
+                return {0, 0};
+            }
+
+            constexpr auto path = static_cast<std::array<char, Path.size()>>(Path);
+
+            auto begin = path.begin() + 1;
+            auto end = begin;
             size_t idx = 0;
-            size_t start = 1;
-            while (start < Path.size())
+            while (path.end() != begin)
             {
-                if (Path.elems[start] == '/')
-                {
-                    idx++;
-                }
-                if (idx == Idx)
+                end = std::find(begin, path.end(), '/');
+                if (idx++ == Idx)
                 {
                     break;
                 }
-                start++;
+                begin = end + 1;
             }
 
-            size_t end = start + 1;
-            while (end < Path.size())
-            {
-                if (Path.elems[end] == '/')
-                {
-                    idx++;
-                }
-                if (idx == Idx)
-                {
-                    break;
-                }
-                end++;
-            }
-
-            return std::pair<size_t, size_t> {start, end};
+            return {std::distance(path.begin(), begin), std::distance(path.begin(), end) - 1};
         }
 
         static constexpr auto pair = impl();

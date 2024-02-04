@@ -45,9 +45,28 @@ class router
             return m_routes.at(request.path)->handle_request(request);
         }
 
+        std::vector<std::string_view> parts;
+        // skip the leading slash
+        std::string_view path = request.path.substr(1);
+        while (!path.empty())
+        {
+            auto part = path.substr(0, path.find('/'));
+            parts.push_back(part);
+
+            // skip the next slash (if there is one)
+            if (path.size() > part.size() + 1)
+            {
+                path = path.substr(part.size() + 1);
+            }
+            else
+            {
+                path = path.substr(part.size());
+            }
+        }
+
         for (const auto& route : m_dynamic_routes)
         {
-            if (route->test_match(request.path))
+            if (route->test_match(parts))
             {
                 return route->handle_request(request);
             }
