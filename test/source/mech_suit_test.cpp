@@ -3,11 +3,9 @@
 #include <boost/beast/http/message_generator.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-auto config = mech_suit::application::config {.address = "0.0.0.0", .port = 3000, .num_threads = 1};
-
 TEST_CASE("Can parse a path with placeholders", "[library]")
 {
-    mech_suit::application app {config};
+    mech_suit::application app;
     app.get<"/path/:int(name)">([](const mech_suit::http_request&, int) -> mech_suit::http::message_generator {});
 
     app.get<"/path/:int(int_name)/:long(long_name)">(

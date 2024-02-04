@@ -1,12 +1,16 @@
+#include <format>
+#include <iostream>
 #include "mech_suit/mech_suit.hpp"
 
 auto main() -> int
 {
     namespace ms = mech_suit;
-    ms::application::config conf {
+
+    ms::config conf {
         .address = "0.0.0.0",
         .port = 3000,
         .num_threads = 1,
+        .connection_timeout = std::chrono::seconds(30),
     };
 
     ms::application app(conf);
@@ -55,7 +59,12 @@ auto main() -> int
             return response;
         });
 
+    app.stop_on_signals(SIGTERM, SIGINT);
+
+    std::cout << std::format("Running basic_example on {}:{}\n", conf.address, conf.port);
     app.run();
+
+    std::cout << "Goodbye.\n";
 
     return 0;
 }

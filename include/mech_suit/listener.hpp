@@ -1,54 +1,59 @@
 #pragma once
+#include <stdexcept>
+#include <utility>
+
 #include "mech_suit/boost.hpp"
 #include "mech_suit/http_session.hpp"
 #include "mech_suit/router.hpp"
+#include "mech_suit/config.hpp"
 
 namespace mech_suit::detail
 {
 class listener : public std::enable_shared_from_this<listener>
 {
+    std::shared_ptr<config> m_config;
     net::io_context& m_ioc;
     tcp::acceptor m_acceptor;
     std::shared_ptr<const router> m_router;
 
   public:
-    listener(net::io_context& ioc, tcp::endpoint endpoint, std::shared_ptr<const router> router)
-        : m_ioc(ioc)
+    listener(std::shared_ptr<config> conf, net::io_context& ioc, std::shared_ptr<const router> router)
+    : m_config(std::move(conf))
+        , m_ioc(ioc)
         , m_acceptor(net::make_strand(ioc))
         , m_router(std::move(router))
     {
+        auto addr = net::ip::make_address(m_config->address);
+        tcp::endpoint endpoint {addr, m_config->port};
+
         beast::error_code err;
 
         // Open the acceptor
         m_acceptor.open(endpoint.protocol(), err);
         if (err)
         {
-            // TODO:
-            return;
+            throw std::runtime_error("Unable to open acceptor: " + err.message());
         }
 
         // Allow address reuse
         m_acceptor.set_option(net::socket_base::reuse_address(true), err);
         if (err)
         {
-            // TODO:
-            return;
+            throw std::runtime_error("Unable to set option on acceptor: " + err.message());
         }
 
         // Bind to the server address
         m_acceptor.bind(endpoint, err);
         if (err)
         {
-            // TODO:
-            return;
+            throw std::runtime_error("Unable to bind to address: " + err.message());
         }
 
         // Start listening for connections
         m_acceptor.listen(net::socket_base::max_listen_connections, err);
         if (err)
         {
-            // TODO:
-            return;
+            throw std::runtime_error("Unable to start listening: " + err.message());
         }
     }
 
@@ -67,12 +72,11 @@ class listener : public std::enable_shared_from_this<listener>
     {
         if (err)
         {
-            // TODO:
-            return;  // To avoid infinite loop
+            throw std::runtime_error("Error in listener" + err.message());
         }
 
         // Create the session and run it
-        std::make_shared<http_session>(std::move(socket), m_router)->run();
+        std::make_shared<http_session>(m_config, std::move(socket), m_router)->run();
 
         // Accept another connection
         do_accept();

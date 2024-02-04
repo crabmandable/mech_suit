@@ -83,12 +83,12 @@ struct path_param : public base_path_part
         }
         else if constexpr (std::is_arithmetic_v<T>)
         {
-            // TODO support negative numbers and floats
+            // TODO: support negative numbers and floats
             return !part.empty() && std::all_of(part.begin(), part.end(), ::isdigit);
         }
         else
         {
-            static_assert(sizeof(T), "Path param testing not implemented for type");
+            static_assert(0 != sizeof(T), "Path param testing not implemented for type");
         }
     }
 

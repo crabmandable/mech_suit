@@ -18,14 +18,14 @@ struct index_of_first
   private:
     static constexpr auto impl() -> int
     {
-        constexpr std::array<bool, sizeof...(T)> a {T...};
-        const auto it = std::find(a.begin(), a.end(), true);
+        constexpr std::array<bool, sizeof...(T)> arr {T...};
+        const auto iter = std::find(arr.begin(), arr.end(), true);
 
-        if (it == a.end())
+        if (iter == arr.end())
         {
             return -1;
         }
-        return static_cast<int>(std::distance(a.begin(), it));
+        return static_cast<int>(std::distance(arr.begin(), iter));
     }
 
   public:
@@ -37,19 +37,4 @@ struct overloaded_visitor : Ts...
 {
     using Ts::operator()...;
 };
-
-template<class Func, class Tuple, size_t N = 0>
-void runtime_get(Func func, Tuple& tup, size_t idx)
-{
-    if (N == idx)
-    {
-        std::invoke(func, std::get<N>(tup));
-        return;
-    }
-
-    if constexpr (N + 1 < std::tuple_size_v<Tuple>)
-    {
-        return runtime_get<Func, Tuple, N + 1>(func, tup, idx);
-    }
-}
 }  // namespace mech_suit

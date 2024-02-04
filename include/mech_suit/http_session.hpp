@@ -1,27 +1,28 @@
 #pragma once
 
 #include <utility>
+
 #include <boost/beast/http/string_body.hpp>
 
 #include "mech_suit/boost.hpp"
-#include "mech_suit/router.hpp"
+#include "mech_suit/config.hpp"
 #include "mech_suit/http_request.hpp"
+#include "mech_suit/router.hpp"
 
 namespace mech_suit::detail
 {
 class http_session : public std::enable_shared_from_this<http_session>
 {
+    std::shared_ptr<config> m_config;
     beast::flat_buffer m_buffer;
     beast::tcp_stream m_stream;
     http_request::beast_request_t m_request;
     std::shared_ptr<const router> m_router;
 
-    // TODO: make configurable
-    static constexpr std::chrono::duration<unsigned int> m_connection_timeout = std::chrono::seconds(30);
-
   public:
-    explicit http_session(tcp::socket socket, std::shared_ptr<const router> router)
-        : m_stream(std::move(socket))
+    explicit http_session(std::shared_ptr<config> conf, tcp::socket socket, std::shared_ptr<const router> router)
+        : m_config(std::move(conf))
+        , m_stream(std::move(socket))
         , m_router(std::move(router))
     {
     }
@@ -48,7 +49,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         m_request = {};
 
         // Set the timeout.
-        m_stream.expires_after(m_connection_timeout);
+        m_stream.expires_after(m_config->connection_timeout);
 
         // Read a request
         http::async_read(
@@ -67,12 +68,12 @@ class http_session : public std::enable_shared_from_this<http_session>
 
         if (err)
         {
-            // TODO:
+            // TODO: error handling
             return;
         }
 
         // Send the response
-        send_response(m_router->handle_request(http_request{std::move(m_request)}));
+        send_response(m_router->handle_request(http_request {std::move(m_request)}));
     }
 
     void send_response(http::message_generator&& msg)
@@ -80,8 +81,9 @@ class http_session : public std::enable_shared_from_this<http_session>
         bool keep_alive = msg.keep_alive();
 
         // Write the response
-        beast::async_write(
-            m_stream, std::move(msg), beast::bind_front_handler(&http_session::on_write, shared_from_this(), keep_alive));
+        beast::async_write(m_stream,
+                           std::move(msg),
+                           beast::bind_front_handler(&http_session::on_write, shared_from_this(), keep_alive));
     }
 
     void on_write(bool keep_alive, beast::error_code err, std::size_t bytes_transferred)
@@ -90,7 +92,7 @@ class http_session : public std::enable_shared_from_this<http_session>
 
         if (err)
         {
-            //TODO:
+            // TODO: error handling
             return;
         }
 
@@ -114,4 +116,4 @@ class http_session : public std::enable_shared_from_this<http_session>
         // At this point the connection is closed gracefully
     }
 };
-}  // namespace mech_suit
+}  // namespace mech_suit::detail
