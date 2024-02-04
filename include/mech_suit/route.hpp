@@ -11,6 +11,7 @@
 #include "mech_suit/boost.hpp"
 #include "mech_suit/common.hpp"
 #include "mech_suit/http_method.hpp"
+#include "mech_suit/http_request.hpp"
 #include "mech_suit/path_params.hpp"
 #include "path_params.hpp"
 
@@ -180,7 +181,7 @@ class route : public base_route
         requires(not std::is_same_v<std::false_type, body_t> && params_t::size == 0)
     auto call_callback(const http_request& request, const body_t& body) const
     {
-        params_t pararms {request.target()};
+        params_t pararms {request.path};
         return m_callback(request, body);
     }
 
@@ -189,7 +190,7 @@ class route : public base_route
         requires(not std::is_same_v<std::false_type, body_t>)
     auto call_callback(std::index_sequence<Is...> /*unused*/, const http_request& request, const body_t& body) const
     {
-        params_t params {request.target()};
+        params_t params {request.path};
         return m_callback(
             request, std::get<typename params_t::template param_type_at_index<Is>::type>(params.params[Is])..., body);
     }
@@ -197,7 +198,7 @@ class route : public base_route
     // The case for a route with no params and no body
     auto call_callback(const http_request& request) const
     {
-        params_t pararms {request.target()};
+        params_t pararms {request.path};
         return m_callback(request);
     }
 
@@ -205,7 +206,7 @@ class route : public base_route
     template<size_t... Is>
     auto call_callback(std::index_sequence<Is...> /*unused*/, const http_request& request) const
     {
-        params_t params {request.target()};
+        params_t params {request.path};
         return m_callback(request,
                           std::get<typename params_t::template param_type_at_index<Is>::type>(params.params[Is])...);
     }
@@ -233,17 +234,17 @@ class route : public base_route
             body_t body;
             if constexpr (body_is_json_v<Body>)
             {
-                auto err = glz::read_json<body_t>(body, request.body());
+                auto err = glz::read_json<body_t>(body, request.beast_request.body());
                 if (err)
                 {
-                    std::string descriptive_error = glz::format_error(err, request.body());
+                    std::string descriptive_error = glz::format_error(err, request.beast_request.body());
                     // TODO: do something with error
                     throw std::runtime_error(descriptive_error);
                 }
             }
             else if constexpr (std::is_same_v<body_string, Body>)
             {
-                body = request.body();
+                body = request.beast_request.body();
             }
 
             if constexpr (params_t::size)

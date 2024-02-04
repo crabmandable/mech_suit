@@ -13,20 +13,20 @@ auto main() -> int
 
     app.get<"/">([](const ms::http_request& request) {
 
-        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.version()};
+        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.beast_request.version()};
         response.set(ms::http::field::content_type, "text/html");
-        response.keep_alive(request.keep_alive());
-        response.body() = "Hello world!";
+        response.keep_alive(request.beast_request.keep_alive());
+        response.body() = "Hello world!\n";
         response.prepare_payload();
         return response;
     });
 
     app.get<"/:string(name)">([](const ms::http_request& request, std::string_view name) {
 
-        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.version()};
+        ms::http::response<ms::http::string_body> response{ms::http::status::ok, request.beast_request.version()};
         response.set(ms::http::field::content_type, "text/html");
-        response.keep_alive(request.keep_alive());
-        response.body() = std::format("Hello {}!", name);
+        response.keep_alive(request.beast_request.keep_alive());
+        response.body() = std::format("Hello {}!\n", name);
         response.prepare_payload();
         return response;
     });
