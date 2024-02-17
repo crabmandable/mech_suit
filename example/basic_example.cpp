@@ -1,11 +1,17 @@
 #include <format>
 #include <iostream>
+
 #include "mech_suit/mech_suit.hpp"
+
+namespace ms = mech_suit;
+
+struct foo
+{
+    int bar = 0;
+};
 
 auto main() -> int
 {
-    namespace ms = mech_suit;
-
     ms::config conf {
         .address = "0.0.0.0",
         .port = 3000,
@@ -55,6 +61,17 @@ auto main() -> int
             response.set(ms::http::field::content_type, "text/html");
             response.keep_alive(request.beast_request.keep_alive());
             response.body() = std::format("{} is a bad number!\n", n);
+            response.prepare_payload();
+            return response;
+        });
+
+    app.post<"/", ms::body_json<foo>>(
+        [](ms::http_request const& request, foo const& body)
+        {
+            ms::http::response<ms::http::string_body> response {ms::http::status::ok, request.beast_request.version()};
+            response.set(ms::http::field::content_type, "text/html");
+            response.keep_alive(request.beast_request.keep_alive());
+            response.body() = std::format("foo.bar = {}\n", body.bar);
             response.prepare_payload();
             return response;
         });

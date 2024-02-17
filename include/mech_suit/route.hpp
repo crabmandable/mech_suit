@@ -10,36 +10,35 @@
 #include "mech_suit/body.hpp"
 #include "mech_suit/boost.hpp"
 #include "mech_suit/common.hpp"
-#include "mech_suit/http_method.hpp"
 #include "mech_suit/http_request.hpp"
 #include "mech_suit/path_params.hpp"
 #include "path_params.hpp"
 
 namespace mech_suit::detail
 {
-template<http_method Method, typename T, typename Body>
+template<http::verb Method, typename T, typename Body>
 struct route_callback;
 
-template<http_method Method, typename... Ts, typename Body>
+template<http::verb Method, typename... Ts, typename Body>
 struct route_callback<Method, std::tuple<Ts...>, Body>
 {
     using type =
         std::function<http::message_generator(const http_request&, typename Ts::type..., const typename Body::type&)>;
 };
 
-template<http_method Method, typename... Ts>
+template<http::verb Method, typename... Ts>
 struct route_callback<Method, std::tuple<Ts...>, no_body_t>
 {
     using type = std::function<http::message_generator(const http_request&, typename Ts::type...)>;
 };
 
-template<meta::string Path, http_method Method, typename Body>
+template<meta::string Path, http::verb Method, typename Body>
 struct callback_type
 {
     using type = route_callback<Method, params_tuple_t<Path>, Body>::type;
 };
 
-template<meta::string Path, http_method Method, typename Body = no_body_t>
+template<meta::string Path, http::verb Method, typename Body = no_body_t>
 using callback_type_t = callback_type<Path, Method, Body>::type;
 
 class base_route
@@ -57,7 +56,7 @@ class base_route
     virtual auto handle_request(const http_request& request) const -> http::message_generator = 0;
 };
 
-template<meta::string Path, http_method Method, typename Body>
+template<meta::string Path, http::verb Method, typename Body>
 class route : public base_route
 {
   public:

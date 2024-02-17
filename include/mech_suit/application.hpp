@@ -1,22 +1,21 @@
 #pragma once
 #include <cstdint>
 #include <memory>
+
 #include <boost/asio/signal_set.hpp>
 
 #include "mech_suit/body.hpp"
+#include "mech_suit/config.hpp"
 #include "mech_suit/listener.hpp"
 #include "mech_suit/meta_string.hpp"
 #include "mech_suit/route.hpp"
 #include "mech_suit/router.hpp"
-#include "mech_suit/config.hpp"
 
 namespace mech_suit
 {
-
 class application
 {
   public:
-
   private:
     std::shared_ptr<detail::router> m_router = std::make_shared<detail::router>();
     std::vector<std::thread> m_threads {};
@@ -38,16 +37,46 @@ class application
 
     ~application() { stop(); }
 
-    template<meta::string Path>
-    void get(detail::callback_type_t<Path, GET> callback)
+    template<http::verb Method, meta::string Path, typename Body = no_body_t>
+    void add_route(detail::callback_type_t<Path, Method, Body> callback)
     {
-        m_router->add_route<Path, GET>(callback);
+        m_router->add_route<Path, Method, Body>(callback);
+    }
+
+    template<meta::string Path>
+    void get(detail::callback_type_t<Path, http::verb::get> callback)
+    {
+        add_route<http::verb::get, Path>(callback);
     }
 
     template<meta::string Path, typename Body = no_body_t>
-    void post(detail::callback_type_t<Path, POST, Body> callback)
+    void head(detail::callback_type_t<Path, http::verb::head, Body> callback)
     {
-        m_router->add_route<Path, POST, Body>(callback);
+        add_route<http::verb::head, Path, Body>(callback);
+    }
+
+    template<meta::string Path, typename Body = no_body_t>
+    void post(detail::callback_type_t<Path, http::verb::post, Body> callback)
+    {
+        add_route<http::verb::post, Path, Body>(callback);
+    }
+
+    template<meta::string Path, typename Body = no_body_t>
+    void put(detail::callback_type_t<Path, http::verb::put, Body> callback)
+    {
+        add_route<http::verb::put, Path, Body>(callback);
+    }
+
+    template<meta::string Path, typename Body = no_body_t>
+    void delete_(detail::callback_type_t<Path, http::verb::delete_, Body> callback)
+    {
+        add_route<http::verb::delete_, Path, Body>(callback);
+    }
+
+    template<meta::string Path, typename Body = no_body_t>
+    void options(detail::callback_type_t<Path, http::verb::options, Body> callback)
+    {
+        add_route<http::verb::options, Path, Body>(callback);
     }
 
     void run()

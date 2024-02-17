@@ -1,4 +1,7 @@
 #pragma once
+
+#include <unordered_map>
+
 #include "mech_suit/boost.hpp"
 #include "mech_suit/route.hpp"
 
@@ -6,13 +9,17 @@ namespace mech_suit::detail
 {
 class router
 {
-    std::map<std::string_view, std::unique_ptr<detail::base_route>> m_routes;
-    std::vector<std::unique_ptr<detail::base_route>> m_dynamic_routes;
+    std::unordered_map<http::verb,
+                       std::unordered_map<std::string_view, std::unique_ptr<detail::base_route>>>
+        m_routes;
+
+    std::unordered_multimap<http::verb, std::unique_ptr<detail::base_route>> m_dynamic_routes;
 
     static auto not_found(const http_request& request) -> http::message_generator
     {
         // TODO: allow customization
-        http::response<http::string_body> res {http::status::not_found, request.beast_request.version()};
+        http::response<http::string_body> res {http::status::not_found,
+                                               request.beast_request.version()};
         res.set(http::field::content_type, "text/html");
         res.keep_alive(false);
         res.body() = "Not found\n";
@@ -22,7 +29,7 @@ class router
     }
 
   public:
-    template<meta::string Path, http_method Method, typename Body = no_body_t>
+    template<meta::string Path, http::verb Method, typename Body = no_body_t>
     void add_route(detail::callback_type_t<Path, Method, Body> callback)
     {
         using route_t = detail::route<Path, Method, Body>;
@@ -30,19 +37,21 @@ class router
 
         if constexpr (route_t::route_is_explicit)
         {
-            m_routes.emplace(static_cast<const char*>(Path), std::move(route));
+            m_routes[Method].emplace(static_cast<const char*>(Path), std::move(route));
         }
         else
         {
-            m_dynamic_routes.emplace_back(std::move(route));
+            m_dynamic_routes.emplace(Method, std::move(route));
         }
     }
 
     auto handle_request(http_request request) const -> http::message_generator
     {
-        if (m_routes.contains(request.path))
+        const auto method = request.beast_request.method();
+
+        if (m_routes.contains(method) && m_routes.at(method).contains(request.path))
         {
-            return m_routes.at(request.path)->handle_request(request);
+            return m_routes.at(method).at(request.path)->handle_request(request);
         }
 
         std::vector<std::string_view> parts;
@@ -64,11 +73,12 @@ class router
             }
         }
 
-        for (const auto& route : m_dynamic_routes)
+        auto range = m_dynamic_routes.equal_range(method);
+        for (auto it = range.first; it != range.second; it++)
         {
-            if (route->test_match(parts))
+            if (it->second->test_match(parts))
             {
-                return route->handle_request(request);
+                return it->second->handle_request(request);
             }
         }
 
