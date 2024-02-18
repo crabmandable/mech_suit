@@ -223,9 +223,9 @@ class route : public base_route
             // TODO: investigate lazy streaming of body
 
             body_t body;
-            if constexpr (body_is_json_v<Body>)
+            if constexpr (body_is_glz_v<Body>)
             {
-                auto err = glz::read_json<body_t>(body, request.beast_request.body());
+                auto err = glz::read<Body::opts>(body, request.beast_request.body());
                 if (err)
                 {
                     std::string descriptive_error = glz::format_error(err, request.beast_request.body());
