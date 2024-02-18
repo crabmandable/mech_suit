@@ -12,7 +12,8 @@ Checks: "*,\
   -llvmlibc-*,\
   -modernize-use-nodiscard,\
   -misc-non-private-member-variables-in-classes,\
-  -readability-braces-around-statements"
+  -readability-braces-around-statements,\
+  -readability-identifier-length"
 WarningsAsErrors: ''
 CheckOptions:
   - key: 'bugprone-argument-comment.StrictMode'

@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "mech_suit/boost.hpp"
+#include "mech_suit/error_handlers.hpp"
 #include "mech_suit/http_session.hpp"
 #include "mech_suit/router.hpp"
 #include "mech_suit/config.hpp"
@@ -15,13 +16,15 @@ class listener : public std::enable_shared_from_this<listener>
     net::io_context& m_ioc;
     tcp::acceptor m_acceptor;
     std::shared_ptr<const router> m_router;
+    socket_error_handler_t m_socket_error_handler;
 
   public:
-    listener(std::shared_ptr<config> conf, net::io_context& ioc, std::shared_ptr<const router> router)
+    listener(std::shared_ptr<config> conf, net::io_context& ioc, std::shared_ptr<const router> router, socket_error_handler_t socket_error_handler)
     : m_config(std::move(conf))
         , m_ioc(ioc)
         , m_acceptor(net::make_strand(ioc))
         , m_router(std::move(router))
+        , m_socket_error_handler(std::move(socket_error_handler))
     {
         auto addr = net::ip::make_address(m_config->address);
         tcp::endpoint endpoint {addr, m_config->port};
@@ -76,7 +79,7 @@ class listener : public std::enable_shared_from_this<listener>
         }
 
         // Create the session and run it
-        std::make_shared<http_session>(m_config, std::move(socket), m_router)->run();
+        std::make_shared<http_session>(m_config, std::move(socket), m_router, m_socket_error_handler)->run();
 
         // Accept another connection
         do_accept();

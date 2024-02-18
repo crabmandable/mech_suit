@@ -1,8 +1,12 @@
 #pragma once
 
+#include <exception>
 #include <unordered_map>
 
+#include <boost/beast/http/message_generator.hpp>
+
 #include "mech_suit/boost.hpp"
+#include "mech_suit/error_handlers.hpp"
 #include "mech_suit/route.hpp"
 
 namespace mech_suit::detail
@@ -17,9 +21,9 @@ class router
 
     static auto not_found(const http_request& request) -> http::message_generator
     {
-        // TODO: allow customization
         http::response<http::string_body> res {http::status::not_found,
                                                request.beast_request.version()};
+
         res.set(http::field::content_type, "text/html");
         res.keep_alive(false);
         res.body() = "Not found\n";
@@ -27,6 +31,38 @@ class router
 
         return res;
     }
+
+    static auto unprocessable(const http_request& request, std::string message)
+        -> http::message_generator
+    {
+        http::response<http::string_body> res {http::status::unprocessable_entity,
+                                               request.beast_request.version()};
+
+        res.set(http::field::content_type, "text/html");
+        res.keep_alive(false);
+        res.body() = std::move(message);
+        res.prepare_payload();
+
+        return res;
+    }
+
+    static auto exception(const http_request& request, std::exception const& except)
+        -> http::message_generator
+    {
+        http::response<http::string_body> res {http::status::internal_server_error,
+                                               request.beast_request.version()};
+
+        res.set(http::field::content_type, "text/html");
+        res.keep_alive(false);
+        res.body() = except.what();
+        res.prepare_payload();
+
+        return res;
+    }
+
+    unprocessable_handler_t m_unprocessable_handler = router::unprocessable;
+    exception_handler_t m_exception_handler = router::exception;
+    not_found_handler_t m_not_found_handler = router::not_found;
 
   public:
     template<meta::string Path, http::verb Method, typename Body = no_body_t>
@@ -45,13 +81,30 @@ class router
         }
     }
 
+    void add_not_found_handler(not_found_handler_t handler)
+    {
+        m_not_found_handler = std::move(handler);
+    }
+
+    void add_exception_handler(exception_handler_t handler)
+    {
+        m_exception_handler = std::move(handler);
+    }
+
+    void add_unprocessable_handler(unprocessable_handler_t handler)
+    {
+        m_unprocessable_handler = std::move(handler);
+    }
+
     auto handle_request(http_request request) const -> http::message_generator
     {
         const auto method = request.beast_request.method();
 
         if (m_routes.contains(method) && m_routes.at(method).contains(request.path))
         {
-            return m_routes.at(method).at(request.path)->handle_request(request);
+            const auto& route = m_routes.at(method).at(request.path);
+
+            return route->handle_request(request, m_exception_handler, m_unprocessable_handler);
         }
 
         std::vector<std::string_view> parts;
@@ -78,11 +131,12 @@ class router
         {
             if (it->second->test_match(parts))
             {
-                return it->second->handle_request(request);
+                return it->second->handle_request(
+                    request, m_exception_handler, m_unprocessable_handler);
             }
         }
 
-        return not_found(request);
+        return m_not_found_handler(request);
     }
 };
 }  // namespace mech_suit::detail

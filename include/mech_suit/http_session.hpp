@@ -6,6 +6,7 @@
 
 #include "mech_suit/boost.hpp"
 #include "mech_suit/config.hpp"
+#include "mech_suit/error_handlers.hpp"
 #include "mech_suit/http_request.hpp"
 #include "mech_suit/router.hpp"
 
@@ -18,12 +19,17 @@ class http_session : public std::enable_shared_from_this<http_session>
     beast::tcp_stream m_stream;
     http_request::beast_request_t m_request;
     std::shared_ptr<const router> m_router;
+    socket_error_handler_t m_socket_error_handler;
 
   public:
-    explicit http_session(std::shared_ptr<config> conf, tcp::socket socket, std::shared_ptr<const router> router)
+    explicit http_session(std::shared_ptr<config> conf,
+                          tcp::socket socket,
+                          std::shared_ptr<const router> router,
+                          socket_error_handler_t socket_error_handler)
         : m_config(std::move(conf))
         , m_stream(std::move(socket))
         , m_router(std::move(router))
+        , m_socket_error_handler(std::move(socket_error_handler))
     {
     }
 
@@ -40,7 +46,8 @@ class http_session : public std::enable_shared_from_this<http_session>
         // on the I/O objects in this session. Although not strictly necessary
         // for single-threaded contexts, this example code is written to be
         // thread-safe by default.
-        net::dispatch(m_stream.get_executor(), beast::bind_front_handler(&http_session::do_read, shared_from_this()));
+        net::dispatch(m_stream.get_executor(),
+                      beast::bind_front_handler(&http_session::do_read, shared_from_this()));
     }
 
     void do_read()
@@ -52,8 +59,10 @@ class http_session : public std::enable_shared_from_this<http_session>
         m_stream.expires_after(m_config->connection_timeout);
 
         // Read a request
-        http::async_read(
-            m_stream, m_buffer, m_request, beast::bind_front_handler(&http_session::on_read, shared_from_this()));
+        http::async_read(m_stream,
+                         m_buffer,
+                         m_request,
+                         beast::bind_front_handler(&http_session::on_read, shared_from_this()));
     }
 
     void on_read(beast::error_code err, std::size_t bytes_transferred)
@@ -68,7 +77,7 @@ class http_session : public std::enable_shared_from_this<http_session>
 
         if (err)
         {
-            // TODO: error handling
+            m_socket_error_handler(err);
             return;
         }
 
@@ -81,9 +90,10 @@ class http_session : public std::enable_shared_from_this<http_session>
         bool keep_alive = msg.keep_alive();
 
         // Write the response
-        beast::async_write(m_stream,
-                           std::move(msg),
-                           beast::bind_front_handler(&http_session::on_write, shared_from_this(), keep_alive));
+        beast::async_write(
+            m_stream,
+            std::move(msg),
+            beast::bind_front_handler(&http_session::on_write, shared_from_this(), keep_alive));
     }
 
     void on_write(bool keep_alive, beast::error_code err, std::size_t bytes_transferred)
@@ -92,7 +102,7 @@ class http_session : public std::enable_shared_from_this<http_session>
 
         if (err)
         {
-            // TODO: error handling
+            m_socket_error_handler(err);
             return;
         }
 

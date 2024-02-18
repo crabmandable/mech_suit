@@ -6,6 +6,7 @@
 
 #include "mech_suit/body.hpp"
 #include "mech_suit/config.hpp"
+#include "mech_suit/error_handlers.hpp"
 #include "mech_suit/listener.hpp"
 #include "mech_suit/meta_string.hpp"
 #include "mech_suit/route.hpp"
@@ -22,6 +23,7 @@ class application
     std::shared_ptr<config> m_config;
     net::io_context m_ioc;
     std::unique_ptr<net::signal_set> m_signals;
+    socket_error_handler_t m_socket_error_handler = [](auto){};
 
   public:
     explicit application(config conf = {})
@@ -79,10 +81,30 @@ class application
         add_route<http::verb::options, Path, Body>(callback);
     }
 
+    void add_not_found_handler(not_found_handler_t handler)
+    {
+        m_router->add_not_found_handler(std::move(handler));
+    }
+
+    void add_exception_handler(exception_handler_t handler)
+    {
+        m_router->add_exception_handler(std::move(handler));
+    }
+
+    void add_unprocessable_handler(unprocessable_handler_t handler)
+    {
+        m_router->add_unprocessable_handler(std::move(handler));
+    }
+
+    void add_socket_error_handler(socket_error_handler_t handler)
+    {
+        m_socket_error_handler = std::move(handler);
+    }
+
     void run()
     {
         // Create and launch a listening port
-        std::make_shared<detail::listener>(m_config, m_ioc, m_router)->run();
+        std::make_shared<detail::listener>(m_config, m_ioc, m_router, m_socket_error_handler)->run();
 
         // Run the I/O service on the requested number of threads
         m_threads.reserve(m_config->num_threads - 1);
