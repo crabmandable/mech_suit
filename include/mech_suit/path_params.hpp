@@ -237,7 +237,7 @@ class http_params_impl<std::tuple<Ts...>>
         }
         else
         {
-            T val;
+            T val {};
             std::from_chars(str.data(), str.data() + str.size(), val);
             return val;
         }

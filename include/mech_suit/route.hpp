@@ -53,7 +53,7 @@ class base_route
     virtual ~base_route() = default;
 
     virtual auto test_match(const std::vector<std::string_view>& path) const -> bool = 0;
-    virtual auto handle_request(const http_request& request, exception_handler_t e_handler, unprocessable_handler_t u_handler) const -> http::message_generator = 0;
+    virtual auto handle_request(const http_request& request, exception_handler_t e_handler, glz_parse_error_handler_t glz_handler) const -> http::message_generator = 0;
 };
 
 template<meta::string Path, http::verb Method, typename Body>
@@ -202,7 +202,7 @@ class route : public base_route
                           std::get<typename params_t::template param_type_at_index<Is>::type>(params.params[Is])...);
     }
 
-    auto handle_request(const http_request& request, exception_handler_t e_handler, unprocessable_handler_t u_handler) const -> http::message_generator final
+    auto handle_request(const http_request& request, exception_handler_t e_handler, glz_parse_error_handler_t glz_handler) const -> http::message_generator final
     {
         using iseq_t = decltype(std::make_index_sequence<params_t::size>());
 
@@ -228,8 +228,7 @@ class route : public base_route
                 auto err = glz::read<Body::opts>(body, request.beast_request.body());
                 if (err)
                 {
-                    std::string descriptive_error = glz::format_error(err, request.beast_request.body());
-                    return u_handler(request, descriptive_error);
+                    return glz_handler(request, err);
                 }
             }
             else if constexpr (std::is_same_v<body_string, Body>)

@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include <boost/beast/http/message_generator.hpp>
+#include <glaze/core/context.hpp>
 
 #include "mech_suit/boost.hpp"
 #include "mech_suit/error_handlers.hpp"
@@ -32,9 +33,12 @@ class router
         return res;
     }
 
-    static auto unprocessable(const http_request& request, std::string message)
+    static auto unprocessable(const http_request& request, glz::parse_error error)
         -> http::message_generator
     {
+
+        std::string message = glz::format_error(error, request.beast_request.body());
+
         http::response<http::string_body> res {http::status::unprocessable_entity,
                                                request.beast_request.version()};
 
@@ -60,7 +64,7 @@ class router
         return res;
     }
 
-    unprocessable_handler_t m_unprocessable_handler = router::unprocessable;
+    glz_parse_error_handler_t m_glz_parse_error_handler = router::unprocessable;
     exception_handler_t m_exception_handler = router::exception;
     not_found_handler_t m_not_found_handler = router::not_found;
 
@@ -91,9 +95,9 @@ class router
         m_exception_handler = std::move(handler);
     }
 
-    void add_unprocessable_handler(unprocessable_handler_t handler)
+    void add_glz_parse_error_handler(glz_parse_error_handler_t handler)
     {
-        m_unprocessable_handler = std::move(handler);
+        m_glz_parse_error_handler = std::move(handler);
     }
 
     auto handle_request(http_request request) const -> http::message_generator
@@ -104,7 +108,7 @@ class router
         {
             const auto& route = m_routes.at(method).at(request.path);
 
-            return route->handle_request(request, m_exception_handler, m_unprocessable_handler);
+            return route->handle_request(request, m_exception_handler, m_glz_parse_error_handler);
         }
 
         std::vector<std::string_view> parts;
@@ -132,7 +136,7 @@ class router
             if (it->second->test_match(parts))
             {
                 return it->second->handle_request(
-                    request, m_exception_handler, m_unprocessable_handler);
+                    request, m_exception_handler, m_glz_parse_error_handler);
             }
         }
 

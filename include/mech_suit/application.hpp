@@ -91,9 +91,9 @@ class application
         m_router->add_exception_handler(std::move(handler));
     }
 
-    void add_unprocessable_handler(unprocessable_handler_t handler)
+    void add_glz_parse_error_handler(glz_parse_error_handler_t handler)
     {
-        m_router->add_unprocessable_handler(std::move(handler));
+        m_router->add_glz_parse_error_handler(std::move(handler));
     }
 
     void add_socket_error_handler(socket_error_handler_t handler)
